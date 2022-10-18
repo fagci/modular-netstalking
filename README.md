@@ -24,3 +24,9 @@ HTML titles
 ```sh
 wan-ips | check-port | xargs -I@ -P8 curl -s @ | grep -ioP '(?<=<title>)[^<]+'
 ```
+
+FTP listings
+
+```sh
+wan-ips | check-port -w 1024 -p 21 | xargs -I@ -P8 curl 'ftp://@'
+```
