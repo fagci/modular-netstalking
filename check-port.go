@@ -48,7 +48,7 @@ func Work(ch chan string, limited bool, wg *sync.WaitGroup) {
 		}
 
 		printMutex.Lock()
-		if count == 0 {
+		if limited && count == 0 {
 			printMutex.Unlock()
 			break
 		}
@@ -80,7 +80,7 @@ func main() {
 	}
 
 	for scanner.Scan() {
-		if count == 0 {
+		if limited && count == 0 {
 			break
 		}
 		ch <- scanner.Text()
