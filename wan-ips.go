@@ -1,21 +1,24 @@
 package main
 
 import (
+	"bufio"
 	crypto_rand "crypto/rand"
 	"encoding/binary"
 	"flag"
-	"fmt"
 	"math/rand"
 	"net"
+	"os"
 )
 
 var (
 	random *rand.Rand
+	writer *bufio.Writer
 	count  int64
 )
 
 func init() {
 	flag.Int64Var(&count, "c", 0, "count of IPs to generate (0 = infinite)")
+	writer = bufio.NewWriterSize(os.Stdout, 4096)
 }
 
 func init() {
@@ -62,6 +65,12 @@ func Uint32ToIP(intip uint32) net.IP {
 	return ip
 }
 
+func PrintIP() {
+	ip := GenerateIP()
+	writer.WriteString(ip.String())
+	writer.WriteByte(10)
+}
+
 func main() {
 	var i int64
 
@@ -69,12 +78,13 @@ func main() {
 
 	if count > 0 {
 		for i = 0; i < count; i++ {
-			fmt.Println(GenerateIP())
+			PrintIP()
 		}
+		writer.Flush()
 		return
 	}
 
 	for {
-		fmt.Println(GenerateIP())
+		PrintIP()
 	}
 }
