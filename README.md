@@ -1,13 +1,13 @@
 # modular-netstalking
 
-## Make
+## Install
 
 ```sh
-find -name '*.go' -exec go build {} \;
+make install
 ```
 
 ## Usage
 
 ```sh
-./random-wan-ips | ./check-port -p 80 -t 750ms
+wan-ips | check-port -p 80
 ```
