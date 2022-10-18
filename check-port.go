@@ -12,11 +12,13 @@ import (
 
 var (
 	port    string
+	workers int
 	timeout time.Duration
 )
 
 func init() {
 	flag.StringVar(&port, "p", "80", "port")
+	flag.IntVar(&workers, "w", 256, "workers count")
 	flag.DurationVar(&timeout, "t", 750*time.Millisecond, "connection timeout")
 }
 
@@ -35,7 +37,7 @@ func main() {
 	var mutex sync.Mutex
 	scanner := bufio.NewScanner(os.Stdin)
 
-	for i := 0; i < 256; i++ {
+	for i := 0; i < workers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -52,7 +54,9 @@ func main() {
 			}
 			if err := scanner.Err(); err != nil {
 				fmt.Fprintln(os.Stderr, "reading standard input:", err)
+				os.Exit(255)
 			}
+			os.Exit(0)
 		}()
 	}
 
