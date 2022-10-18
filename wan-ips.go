@@ -63,8 +63,9 @@ func Uint32ToIP(intip uint32) net.IP {
 }
 
 func main() {
-	flag.Parse()
 	var i int64
+
+	flag.Parse()
 
 	if count > 0 {
 		for i = 0; i < count; i++ {
