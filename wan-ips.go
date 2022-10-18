@@ -10,15 +10,21 @@ import (
 )
 
 var (
-	count int64
+	random *rand.Rand
+	count  int64
 )
 
 func init() {
 	flag.Int64Var(&count, "c", 0, "count of IPs to generate (0 = infinite)")
 }
 
-type IPGenerator struct {
-	r   *rand.Rand
+func init() {
+	b := make([]byte, 8)
+	if _, err := crypto_rand.Read(b); err != nil {
+		panic("Cryptorandom seed failed: " + err.Error())
+	}
+	seed := int64(binary.LittleEndian.Uint64(b))
+	random = rand.New(rand.NewSource(seed))
 }
 
 func notGlobal(intip uint32) bool {
@@ -39,11 +45,10 @@ func notGlobal(intip uint32) bool {
 		(0xe9fc0000 <= intip && intip <= 0xe9fc00ff) // 233.252.0.0 - 233.252.0.255
 }
 
-// Generates single WAN IP
-func (g *IPGenerator) GenerateIP() net.IP {
+func GenerateIP() net.IP {
 	var intip uint32
 	for {
-		intip = 0x01000000 + g.r.Uint32()%0xfeffffff
+		intip = 0x01000000 + random.Uint32()%0xfeffffff
 		if notGlobal(intip) {
 			continue
 		}
@@ -51,37 +56,24 @@ func (g *IPGenerator) GenerateIP() net.IP {
 	}
 }
 
-func NewIPGenerator() *IPGenerator {
-	return &IPGenerator{
-		r: NewCryptoRandom(),
-	}
-}
-
-func NewCryptoRandom() *rand.Rand {
-	b := make([]byte, 8)
-	if _, err := crypto_rand.Read(b); err != nil {
-		panic("Cryptorandom seed failed: " + err.Error())
-	}
-	return rand.New(rand.NewSource(int64(binary.LittleEndian.Uint64(b))))
-}
-
 func Uint32ToIP(intip uint32) net.IP {
-	return net.IPv4(byte(intip>>24&0xff), byte(intip>>16&0xff), byte(intip>>8&0xff), byte(intip&0xff))
+	ip := make(net.IP, net.IPv4len)
+	binary.BigEndian.PutUint32(ip, intip)
+	return ip
 }
 
 func main() {
-    flag.Parse()
+	flag.Parse()
 	var i int64
-	gen := NewIPGenerator()
 
 	if count > 0 {
 		for i = 0; i < count; i++ {
-			fmt.Println(gen.GenerateIP())
+			fmt.Println(GenerateIP())
 		}
 		return
 	}
 
 	for {
-		fmt.Println(gen.GenerateIP())
+		fmt.Println(GenerateIP())
 	}
 }
