@@ -37,3 +37,10 @@ IPs w/open WP uploads dir
 wan-ips | check-port -w 1024 | xargs -I@ -P8 bash -c \
   'timeout 5 curl -s "http://@/wp-content/uploads/" | grep -qF "Index of" && echo @'
 ```
+
+Stats of open MySQL ports per 100k hosts
+
+```sh
+wan-ips -c 100000 | check-port -w 1024 -p 3306 | wc -l
+# 171
+```
