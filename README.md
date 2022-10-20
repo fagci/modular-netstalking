@@ -44,3 +44,18 @@ Stats of open MySQL ports per 100k hosts
 wan-ips -c 100000 | check-port -w 1024 -p 3306 | wc -l
 # 171
 ```
+
+Top 5 HTTP servers from 30 hosts
+
+```sh
+wan-ips | check-port -w 1024 -c 30 \
+  | xargs -I@ -P8 timeout 5 curl -s --head 'http://@' \
+  | grep -oP '(?<=Server: )(.+)' \
+  | cut -d ' ' -f1 \
+  | sort | uniq -c | sort -rk1 | head -n 5
+#      6 nginx
+#      2 awselb/2.0
+#      1 nginx/1.22.0
+#      1 nginx/1.2.1
+#      1 nginx/1.16.0
+```
