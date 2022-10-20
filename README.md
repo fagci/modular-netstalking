@@ -30,3 +30,10 @@ FTP listings
 ```sh
 wan-ips | check-port -w 1024 -p 21 | xargs -I@ -P8 curl 'ftp://@'
 ```
+
+IPs w/open WP uploads dir
+
+```sh
+wan-ips | check-port -w 1024 | xargs -I@ -P8 bash -c \
+  'timeout 5 curl -s "http://@/wp-content/uploads/" | grep -qF "Index of" && echo @'
+```
