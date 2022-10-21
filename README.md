@@ -50,7 +50,7 @@ Top 5 HTTP servers from 30 hosts
 ```sh
 wan-ips | check-port -w 1024 -c 30 \
   | xargs -I@ -P8 timeout 5 curl -s --head 'http://@' \
-  | grep -oP '(?<=Server: )(\S+)' \
+  | grep -oP '(?<=Server: )([^\s/]+)' \
   | sort | uniq -c | sort -rk1 | head -n 5
 #      6 nginx
 #      2 awselb/2.0
