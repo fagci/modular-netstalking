@@ -26,9 +26,8 @@ func init() {
 }
 
 func CheckPort(host string, port string) bool {
-	conn, _ := net.DialTimeout("tcp", net.JoinHostPort(host, port), timeout)
-	if conn != nil {
-		defer conn.Close()
+	if conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), timeout); err == nil {
+		conn.Close()
 		return true
 	}
 	return false
