@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"flag"
 	"fmt"
 	"net"
@@ -25,71 +26,86 @@ func init() {
 	flag.DurationVar(&timeout, "t", 750*time.Millisecond, "connection timeout")
 }
 
-func CheckPort(host string, port string) bool {
+func CheckPort(host string, port string, ch chan string) {
 	if conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), timeout); err == nil {
 		conn.Close()
-		return true
+		ch <- host
 	}
-	return false
 }
 
-func Work(ch chan string, limited bool, wg *sync.WaitGroup) {
+func Work(ch_in chan string, ch_out chan string, wg *sync.WaitGroup) {
 	defer wg.Done()
 
+	for {
+		if ip, ok := <-ch_in; ok {
+			CheckPort(ip, port, ch_out)
+			continue
+		}
+		return
+	}
+}
+
+func Gather(ch chan string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	limited := count > 0
 	for {
 		ip, ok := <-ch
 		if !ok {
 			break
 		}
-
-		if !CheckPort(ip, port) {
-			continue
-		}
-
-		printMutex.Lock()
-		if limited && count == 0 {
-			printMutex.Unlock()
-			break
-		}
-
 		fmt.Println(ip)
-
 		if limited {
 			count--
 			if count == 0 {
-				printMutex.Unlock()
 				break
 			}
 		}
-		printMutex.Unlock()
 	}
 }
 
-func main() {
-	var wg sync.WaitGroup
-	flag.Parse()
-	ch := make(chan string, workers*2)
-
+func ReadStdin(ch_in chan string, ctx context.Context) {
 	scanner := bufio.NewScanner(os.Stdin)
-	limited := count > 0
-
-	for i := 0; i < workers; i++ {
-		wg.Add(1)
-		go Work(ch, limited, &wg)
-	}
-
 	for scanner.Scan() {
-		if limited && count == 0 {
-			break
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			ch_in <- scanner.Text()
 		}
-		ch <- scanner.Text()
 	}
-
-	close(ch)
 
 	if err := scanner.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, "reading standard input:", err)
 	}
+	close(ch_in)
+}
 
-	wg.Wait()
+func RunWorkers(ch_in, ch_out chan string) {
+	var wg_workers sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg_workers.Add(1)
+		go Work(ch_in, ch_out, &wg_workers)
+	}
+	wg_workers.Wait()
+	close(ch_out)
+}
+
+func main() {
+	var wg_gather sync.WaitGroup
+
+	flag.Parse()
+
+	ch_in := make(chan string, workers*2)
+	ch_out := make(chan string)
+
+	reader_ctx, reader_cancel := context.WithCancel(context.Background())
+
+	wg_gather.Add(1)
+
+	go Gather(ch_out, &wg_gather)
+	go RunWorkers(ch_in, ch_out)
+	go ReadStdin(ch_in, reader_ctx)
+
+	wg_gather.Wait()
+	reader_cancel()
 }
