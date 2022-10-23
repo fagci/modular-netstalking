@@ -9,53 +9,55 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"modular-netstalking/lib"
 )
 
 var (
 	port    string
 	workers int
-	count   uint64
 	timeout time.Duration
 )
 
 func init() {
-	flag.StringVar(&port, "p", "80", "port")
+	flag.StringVar(&port, "p", "", "port")
 	flag.IntVar(&workers, "w", 256, "workers count")
-	flag.Uint64Var(&count, "c", 0, "count of IPs to gather (0 = infinite)")
 	flag.DurationVar(&timeout, "t", 750*time.Millisecond, "connection timeout")
+	flag.Uint64Var(&lib.OutputCount, "c", 0, "count of IPs to gather (0 = infinite)")
 }
 
-func CheckPort(host string, port string, toGatherIPsChan chan<- string) {
-	if conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), timeout); err == nil {
+func CheckPort(host string, toGatherIPsChan chan<- lib.HostInfo) {
+	if conn, err := net.DialTimeout("tcp", host, timeout); err == nil {
 		conn.Close()
-		toGatherIPsChan <- host
+		toGatherIPsChan <- lib.NewHostInfo(host)
 	}
 }
 
-func Work(toCheckIPsChan <-chan string, toGatherIPsChan chan<- string, wg *sync.WaitGroup) {
+func Work(toCheckIPsChan <-chan string, toGatherIPsChan chan<- lib.HostInfo, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for {
-		if ip, ok := <-toCheckIPsChan; ok {
-			CheckPort(ip, port, toGatherIPsChan)
+		if host, ok := <-toCheckIPsChan; ok {
+			CheckPort(host, toGatherIPsChan)
 			continue
 		}
 		return
 	}
 }
 
-func Gather(toGatherIPsChan <-chan string, wg *sync.WaitGroup) {
+func Gather(toGatherIPsChan <-chan lib.HostInfo, wg *sync.WaitGroup) {
 	defer wg.Done()
-	limited := count > 0
+	limited := lib.OutputCount > 0
+	rest := lib.OutputCount
 	for {
 		ip, ok := <-toGatherIPsChan
 		if !ok {
 			break
 		}
-		fmt.Println(ip)
+		fmt.Println(ip.String(!lib.GreppableOutput))
 		if limited {
-			count--
-			if count == 0 {
+			rest--
+			if rest == 0 {
 				break
 			}
 		}
@@ -64,12 +66,26 @@ func Gather(toGatherIPsChan <-chan string, wg *sync.WaitGroup) {
 
 func ReadStdin(toCheckIPsChan chan<- string, ctx context.Context) {
 	scanner := bufio.NewScanner(os.Stdin)
+	noPortSpecified := port == ""
+	if noPortSpecified {
+		scanner.Scan()
+		host := scanner.Text()
+		if _, _, err := net.SplitHostPort(host); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(255)
+		}
+		toCheckIPsChan <- host
+	}
 	for scanner.Scan() {
 		select {
 		case <-ctx.Done():
 			return
 		default:
-			toCheckIPsChan <- scanner.Text()
+			if noPortSpecified {
+				toCheckIPsChan <- scanner.Text()
+			} else {
+				toCheckIPsChan <- net.JoinHostPort(scanner.Text(), port)
+			}
 		}
 	}
 
@@ -79,7 +95,7 @@ func ReadStdin(toCheckIPsChan chan<- string, ctx context.Context) {
 	close(toCheckIPsChan)
 }
 
-func RunWorkers(toCheckIPsChan <-chan string, toGatherIPsChan chan<- string) {
+func RunWorkers(toCheckIPsChan <-chan string, toGatherIPsChan chan<- lib.HostInfo) {
 	var wg_workers sync.WaitGroup
 	for i := 0; i < workers; i++ {
 		wg_workers.Add(1)
@@ -95,7 +111,7 @@ func main() {
 	flag.Parse()
 
 	toCheckIPsChan := make(chan string, workers*2)
-	toGatherIPsChan := make(chan string)
+	toGatherIPsChan := make(chan lib.HostInfo)
 
 	readerCtx, readerCancel := context.WithCancel(context.Background())
 

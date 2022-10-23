@@ -6,6 +6,8 @@ import (
 	"encoding/binary"
 	"flag"
 	"math/rand"
+	"modular-netstalking/lib"
+	_ "modular-netstalking/lib"
 	"net"
 	"os"
 )
@@ -13,11 +15,10 @@ import (
 var (
 	random *rand.Rand
 	writer *bufio.Writer
-	count  int64
 )
 
 func init() {
-	flag.Int64Var(&count, "c", 0, "count of IPs to generate (0 = infinite)")
+	flag.Uint64Var(&lib.OutputCount, "c", 0, "count of IPs to gather (0 = infinite)")
 	writer = bufio.NewWriterSize(os.Stdout, 4096)
 }
 
@@ -72,12 +73,12 @@ func PrintIP() {
 }
 
 func main() {
-	var i int64
+	var i uint64
 
 	flag.Parse()
 
-	if count > 0 {
-		for i = 0; i < count; i++ {
+	if lib.OutputCount > 0 {
+		for i = 0; i < lib.OutputCount; i++ {
 			PrintIP()
 		}
 		writer.Flush()

@@ -4,46 +4,28 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"modular-netstalking/lib"
 	"os"
 )
 
 var (
-	path   string
 	format string
 )
 
 func init() {
-	flag.StringVar(&path, "d", "", "dictionary path")
 	flag.StringVar(&format, "f", "%s%s", "concatenation format")
-}
-
-func FileToArray(path string) ([]string, error) {
-	var lines []string
-
-	file, err := os.Open(path)
-	if err != nil {
-		return lines, err
-	}
-
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-
-	return lines, scanner.Err()
+	flag.StringVar(&lib.DictPath, "d", "", "dictionary path")
 }
 
 func main() {
 	flag.Parse()
 
-	if path == "" {
+	if lib.DictPath == "" {
 		flag.Usage()
 		os.Exit(255)
 	}
 
-	dict, err := FileToArray(path)
+	dict, err := lib.FileToArray(lib.DictPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "dict open: ", err)
 		os.Exit(255)

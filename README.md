@@ -11,30 +11,30 @@ make install
 HTTP servers
 
 ```sh
-wan-ips | check-port
+wan-ips | check-port -p 80
 ```
 
 Quotd
 
 ```sh
-wan-ips | check-port -w 1024 -p 17 | xargs -I@ -P8 timeout 5 ncat @ 17
+wan-ips | check-port -w 1024 -p 17 -oG | xargs -I@ -P8 timeout 5 ncat @ 17
 ```
 HTML titles
 
 ```sh
-wan-ips | check-port | xargs -I@ -P8 curl -s @ | grep -ioP '(?<=<title>)[^<]+'
+wan-ips | check-port -p 80 -oG | xargs -I@ -P8 curl -s @ | grep -ioP '(?<=<title>)[^<]+'
 ```
 
 FTP listings
 
 ```sh
-wan-ips | check-port -w 1024 -p 21 | xargs -I@ -P8 curl 'ftp://@'
+wan-ips | check-port -w 1024 -p 21 -oG | xargs -I@ -P8 curl 'ftp://@'
 ```
 
 IPs w/open WP uploads dir
 
 ```sh
-wan-ips | check-port -w 1024 | xargs -I@ -P8 bash -c \
+wan-ips | check-port -w 1024 -p 80 -oG | xargs -I@ -P8 bash -c \
   'timeout 5 curl -s "http://@/wp-content/uploads/" | grep -qF "Index of" && echo @'
 ```
 
@@ -48,7 +48,7 @@ wan-ips -c 100000 | check-port -w 1024 -p 3306 | wc -l
 Top 5 HTTP servers from 30 hosts
 
 ```sh
-wan-ips | check-port -w 1024 -c 30 \
+wan-ips | check-port -w 1024 -p 80 -c 30 -oG \
   | xargs -I@ -P8 timeout 5 curl -s --head 'http://@' \
   | grep -oP '(?<=Server: )([^\s/]+)' \
   | sort | uniq -c | sort -rk1 | head -n 5
